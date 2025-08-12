@@ -25,9 +25,12 @@ class AppImpl: public Application {
 
 	size_t frame_num = 0;
 	uint32_t last_tick_ms = 0;
+	uint32_t this_tick_ms = 0;
 
 	void create_shaders();
 	void create_render_pipeline();
+
+	void draw_objects(SDL_GPUCommandBuffer *cb, SDL_GPURenderPass *rp);
 
 	void any_close();
 

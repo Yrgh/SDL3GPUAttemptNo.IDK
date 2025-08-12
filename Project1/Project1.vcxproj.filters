@@ -38,9 +38,6 @@
     <ClInclude Include="AppImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ShaderTools.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Conventions.md" />

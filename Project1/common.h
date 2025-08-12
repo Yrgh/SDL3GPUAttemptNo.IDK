@@ -8,6 +8,13 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+using glm::vec4, glm::vec3, glm::vec2, glm::mat4x4, glm::quat;
+
 #define IGNORE(something)
 #define NO_IMPL(result) { std::cout << "No implementation\n";  return result; }
 

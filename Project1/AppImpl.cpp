@@ -1,7 +1,10 @@
 #include "AppImpl.h"
-#include "ShaderTools.h"
 
 #include <SDL3/SDL_timer.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 struct Vertex {
 	struct {
@@ -21,7 +24,7 @@ const Vertex vertex_buffer[3] = {
 		.pos = {
 			.x =  0.0f,
 			.y = -0.5f,
-			.z =  0.5f
+			.z =  0.0f
 		},
 		.col = {
 			.r = 1.0f,
@@ -33,7 +36,7 @@ const Vertex vertex_buffer[3] = {
 		.pos = {
 			.x =  0.5f,
 			.y =  0.5f,
-			.z =  0.5f
+			.z =  0.0f
 		},
 		.col = {
 			.r = 0.0f,
@@ -45,7 +48,7 @@ const Vertex vertex_buffer[3] = {
 		.pos = {
 			.x = -0.5f,
 			.y =  0.5f,
-			.z =  0.5f
+			.z =  0.0f
 		},
 		.col = {
 			.r = 0.0f,
@@ -54,6 +57,40 @@ const Vertex vertex_buffer[3] = {
 		}
 	},
 };
+
+void AppImpl::draw_objects(SDL_GPUCommandBuffer *cb, SDL_GPURenderPass *rp) {
+	// Bind vertex buffer
+	SDL_GPUBufferBinding bindings[1] = {
+		{
+			.buffer = m_vb,
+			.offset = 0
+		}
+	};
+
+	SDL_BindGPUVertexBuffers(rp, 0, bindings, 1);
+	
+	// Upload uniforms
+	float bd0f[32] = { 0 };
+
+	// Generate projection & eye matrix, then copy to uniform buffer
+	mat4x4 eye = glm::identity<mat4x4>();
+	eye = glm::translate(eye, vec3(cos(this_tick_ms / 1000.0f), sin(this_tick_ms / 1000.0f), 0.0f));
+
+	mat4x4 eyeproj = glm::perspectiveFov(glm::radians(90.0f), m_viewport.w, m_viewport.h, 0.01f, 4096.0f) * glm::inverse(eye);
+	memmove((byte *) (bd0f + 0), (void *) &eyeproj, sizeof(eyeproj));
+
+	// Same for world matrix, but invert first
+	mat4x4 world = glm::identity<mat4x4>();
+	world = glm::translate(world, vec3(0.0f, 0.0f, -2.0f));
+
+	world *= glm::mat4x4(glm::angleAxis(this_tick_ms / 1000.0f, vec3(0.0, 1.0, 0.0)));
+	memmove((byte *) (bd0f + 16), (void *) &world, sizeof(world));
+
+	SDL_PushGPUVertexUniformData(cb, 0, (void *) bd0f, sizeof(bd0f));
+
+	// Draw it
+	SDL_DrawGPUPrimitives(rp, 3, 1, 0, 0);
+}
 
 void AppImpl::process_tick() {
 	SDL_GPUCommandBuffer *cb = SDL_AcquireGPUCommandBuffer(m_main_gpu_device);
@@ -73,7 +110,7 @@ void AppImpl::process_tick() {
 		return;
 	}
 
-	uint32_t this_tick_ms = SDL_GetTicks();
+	this_tick_ms = SDL_GetTicks();
 	
 	std::cout << "Frame: " << frame_num << "  FPS: " << 1000.0 / (float) (this_tick_ms - last_tick_ms) << "\n";
 
@@ -141,20 +178,7 @@ void AppImpl::process_tick() {
 	SDL_BindGPUGraphicsPipeline(rp, m_rp0);
 	SDL_SetGPUViewport(rp, &m_viewport);
 
-	SDL_PushGPUVertexUniformData(cb, 0, NULL, 0);
-
-	// Bind vertex buffer
-	SDL_GPUBufferBinding bindings[1] = {
-		{
-			.buffer = m_vb,
-			.offset = 0
-		}
-	};
-
-	SDL_BindGPUVertexBuffers(rp, 0, bindings, 1);
-
-	// Draw it
-	SDL_DrawGPUPrimitives(rp, 3, 1, 0, 0);
+	draw_objects(cb, rp);
 
 	// Off to the GPU we go
 	SDL_EndGPURenderPass(rp);
@@ -212,7 +236,7 @@ void AppImpl::create_shaders() {
 		.num_samplers = 0,
 		.num_storage_textures = 0,
 		.num_storage_buffers = 0,
-		.num_uniform_buffers = 0,
+		.num_uniform_buffers = 1,
 	};
 
 	m_vs0 = SDL_CreateGPUShader(m_main_gpu_device, &sci);
@@ -286,7 +310,7 @@ void AppImpl::create_render_pipeline() {
 
 	gpci.rasterizer_state = {
 		.fill_mode = SDL_GPU_FILLMODE_FILL,
-		.cull_mode = SDL_GPU_CULLMODE_BACK,
+		.cull_mode = SDL_GPU_CULLMODE_NONE,
 		.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
 		.depth_bias_constant_factor = 0.0f,
 		.depth_bias_clamp = 0.0f,
@@ -377,7 +401,7 @@ void AppImpl::init() {
 		.y = 0.0f,
 		.w = (float) window_w,
 		.h = (float) window_h,
-		.min_depth = 0.01f,
+		.min_depth = 0.0f,
 		.max_depth = 1.0f
 	};
 
