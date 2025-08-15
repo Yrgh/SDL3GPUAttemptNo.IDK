@@ -33,6 +33,15 @@ enum class RendererCleanupExclude {
 
 };
 
+struct TextureState {
+	u32 mip_levels;
+	bool dirty_mip;
+
+	SDL_GPUTextureFormat format;
+
+	u32 width, height, depth;
+};
+
 class Renderer {
 	SDL_GPUDevice *m_device;
 
@@ -45,6 +54,7 @@ class Renderer {
 	std::vector<ScreenTextureInfo> m_screen_tex_infos;
 
 	std::vector<SDL_GPUTexture *> m_user_textures;
+	std::vector<TextureState> m_texture_states;
 
 	std::vector<SDL_GPUSampler *> m_samplers;
 
@@ -115,20 +125,27 @@ public:
 	/// </summary>
 	/// <returns>An ActiveCopyPass, which should be ended with end_copy_pass()</returns>
 	ActiveCopyPass begin_copy_pass();
-	void end_copy_pass(ActiveCopyPass);
+
+	/// <summary>
+	/// Ends a copy pass and does non-pass processing
+	/// </summary>
+	/// <param name="pass">- The copy pass to end</param>
+	void end_copy_pass(ActiveCopyPass pass);
 
 	/// <summary>
 	/// Begins a render pass. The render pass will target the window that was specified at creation
 	/// </summary>
 	/// <returns>An ActiveRenderPass which should be ended with end_render_pass()</returns>
 	ActiveRenderPass begin_window_render_pass();
+
 	/// <summary>
 	/// Begins a render pass. The render pass will target the specified textures
 	/// </summary>
 	/// <param name="description">- A description of the color targets and other pipeline information</param>
 	/// <returns>An ActiveRenderPass which should be ended with end_render_pass()</returns>
 	ActiveRenderPass begin_custom_render_pass(CustomInfo description);
-	void end_render_pass(ActiveRenderPass);
+
+	void end_render_pass(ActiveRenderPass pass);
 
 	/// <summary>
 	/// Generates a perspective projection matrix
@@ -144,22 +161,26 @@ public:
 	/// <param name="size">- The length in bytes of the buffer</param>
 	/// <returns>An RID representing the buffer</returns>
 	RID create_buffer(SDL_GPUBufferUsageFlags usage, u32 size);
+
 	/// <summary>
 	/// Resizes a buffer, reusing the usage flagse.
 	/// </summary>
 	/// <param name="buffer">- An RID representing the buffer</param>
 	/// <param name="size">- The new size of the buffer</param>
 	void resize_buffer(RID buffer, u32 size);
+
 	/// <summary>
 	/// Deletes a buffer and allows a new one to be allocated in its stead.
 	/// </summary>
 	/// <param name="buffer">- An RID representing the buffer</param>
 	void destroy_buffer(RID buffer);
+
 	// Returns the SDL handle for the RID representing a buffer. This handle should only be acquired from
 	// create_buffer()
 	inline SDL_GPUBuffer *get_buffer(RID buffer) {
 		return *buffer == U32_BAD ? nullptr : m_buffers[*buffer];
 	}
+	
 	// Returns true if the RID is a valid index and the buffer has not been deleted
 	bool is_buffer_valid(RID buffer);
 	
@@ -171,11 +192,13 @@ public:
 	/// <param name="usage">- The SDL flags describing its purpose</param>
 	/// <returns>An RID representing the texture</returns>
 	RID create_screen_texture(SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage);
+
 	// Returns the SDL handle for the RID representing the texture. This handle should only be acquired from
 	// create_screen_texture()
 	inline SDL_GPUTexture *get_screen_texture(RID texture) {
 		return *texture == U32_BAD ? nullptr : m_screen_textures[*texture];
 	}
+	
 	/// <summary>
 	/// Deletes the texture, but does not free it for replacement.
 	/// </summary>
@@ -188,13 +211,20 @@ public:
 	/// <param name="info">- The info that will be provided directly to SDL</param>
 	/// <returns>An RID representing the texture</returns>
 	RID create_texture(const SDL_GPUTextureCreateInfo *info);
+	
 	// Returns the SDL handle for the RID representing the texture. This handle should only be acquired from
 	// create_texture()
 	inline SDL_GPUTexture *get_texture(RID texture) {
 		return *texture == U32_BAD ? nullptr : m_user_textures[*texture];
 	}
+
+	inline const TextureState &get_texture_info(RID texture) const {
+		return m_texture_states[*texture];
+	}
+	
 	// Destroys the texture, allowing a new one to replace its position
 	void destroy_texture(RID texture);
+	
 	// Returns true if the RID is a valid index and the texture has not been deleted
 	bool is_texture_valid(RID texture);
 
@@ -207,6 +237,7 @@ public:
 	/// <param name="anisotropy">- If >0, enables anisotropy on the specified level (eg. 4x = 4.0f)</param>
 	/// <returns></returns>
 	RID create_sampler(bool linear_sample, bool clamp_uv, float anisotropy = 0.0f);
+	
 	// Returns the SDL handle for the RID representing the sampler. This handle should only be acquired from
 	// create_sampler()
 	inline SDL_GPUSampler *get_sampler(RID sampler) {

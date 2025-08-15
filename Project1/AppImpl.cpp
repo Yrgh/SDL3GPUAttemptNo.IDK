@@ -79,11 +79,12 @@ const SDL_FColor texture[4] = {
 };
 
 void AppImpl::process_tick() {
-
 	ActiveCopyPass acp = m_renderer.begin_copy_pass();
 	if (acp.is_valid()) {
 		acp.upload_buffer((byte *) vertex_buffer, sizeof(vertex_buffer), m_vb);
 		acp.upload_buffer((byte *) index_buffer, sizeof(index_buffer), m_ib);
+
+		acp.upload_texture((byte *) texture, sizeof(texture), m_texture0);
 	}
 	m_renderer.end_copy_pass(std::move(acp));
 
@@ -213,7 +214,7 @@ void AppImpl::init() {
 	SDL_GPUTextureCreateInfo t0ci = {
 		.type = SDL_GPU_TEXTURETYPE_2D,
 		.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
 		.width = 2,
 		.height = 2,
 		.layer_count_or_depth = 1,
@@ -221,6 +222,8 @@ void AppImpl::init() {
 	};
 
 	m_texture0 = m_renderer.create_texture(&t0ci);
+
+	m_linear_wrap_sampler = m_renderer.create_sampler(true, false);
 }
 
 void AppImpl::any_close() {}

@@ -105,6 +105,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 		}
 	}
 	m_user_textures.clear();
+	m_texture_states.clear();
 
 	for (int i = 0; i < m_samplers.size(); ++i) {
 		if (m_samplers[i]) {
@@ -196,6 +197,13 @@ void Renderer::end_copy_pass(ActiveCopyPass acp) {
 	acp.m_renderer = nullptr;
 
 	SDL_EndGPUCopyPass(acp.m_cp);
+
+	// Do non-pass processing
+	for (int i = 0; i < m_user_textures.size(); ++i) {
+		if (m_user_textures[i] && m_texture_states[i].dirty_mip) {
+			SDL_GenerateMipmapsForGPUTexture(acp.m_cb, m_user_textures[i]);
+		}
+	}
 
 	SDL_SubmitGPUCommandBuffer(acp.m_cb);
 }
@@ -382,9 +390,25 @@ RID Renderer::create_texture(const SDL_GPUTextureCreateInfo *info) {
 
 	if (location == U32_BAD) {
 		m_user_textures.push_back(SDL_CreateGPUTexture(m_device, info));
-		return RID(m_buffers.size() - 1);
+		m_texture_states.push_back(TextureState{
+			.mip_levels = info->num_levels,
+			.dirty_mip = info->num_levels > 1,
+			.format = info->format,
+			.width = info->width,
+			.height = info->height,
+			.depth = info->layer_count_or_depth
+		});
+		return RID(m_user_textures.size() - 1);
 	} else {
 		m_user_textures[location] = SDL_CreateGPUTexture(m_device, info);
+		m_texture_states[location] = TextureState{
+			.mip_levels = info->num_levels,
+			.dirty_mip = info->num_levels > 1,
+			.format = info->format,
+			.width = info->width,
+			.height = info->height,
+			.depth = info->layer_count_or_depth
+		};
 
 		return RID(location);
 	}

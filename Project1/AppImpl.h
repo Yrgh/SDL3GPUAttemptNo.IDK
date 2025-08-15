@@ -12,6 +12,8 @@ class AppImpl : public Application {
 	RID m_ib;
 
 	RID m_texture0;
+	
+	RID m_linear_wrap_sampler;
 
 	Renderer m_renderer;
 
