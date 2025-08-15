@@ -66,3 +66,17 @@ public:
 		return m_number > 0;
 	}
 };
+
+inline size_t total_allocs = 0;
+
+inline void *operator new(size_t size) {
+	//std::cout << "Allocated " << size << " bytes (" << total_allocs << ")\n";
+	total_allocs++;
+	return malloc(size);
+}
+
+inline void operator delete(void *mem) {
+	total_allocs--;
+	//std::cout << "Freed allocation (" << total_allocs << ")\n";
+	free(mem);
+}

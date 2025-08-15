@@ -11,6 +11,9 @@ class ActiveRenderPass {
 	SDL_GPUCommandBuffer *m_cb;
 	SDL_GPURenderPass *m_rp;
 
+	u32 m_vertex_count = 0;
+	bool m_indexed = false;
+
 	friend class Renderer;
 
 	ActiveRenderPass(Renderer &);
@@ -26,13 +29,37 @@ public:
 
 	void upload_vertex_uniform_buffer(u32 slot, const void *data, u32 length);
 
-	// Omit the second argument if
-	// - Only per-vertex attributes exist
-	// - Only per-instance attributes exist
-	// - The same buffer is used
-	void bind_vertex_buffers(SDL_GPUBuffer *buf1, SDL_GPUBuffer *buf2 = nullptr);
+	/// <summary>
+	/// Assigns mesh data to subsequent draw calls
+	/// </summary>
+	/// <param name="vertex_count">- The number of vertices to draw</param>
+	/// <param name="vbuf1">- The primary data buffer</param>
+	/// <param name="vbuf2">
+	/// - (Optional) The secondary data buffer. If there are only per-vertex or per-instance attributes,
+	/// don't specify this buffer. If data is stored in a single buffer, leave this as default.
+	/// </param>
+	void bind_mesh(u32 vertex_count, RID vbuf1, RID vbuf2 = U32_BAD);
+	/// <summary>
+	/// Assigns indexed mesh data to subsequent draw calls
+	/// </summary>
+	/// <param name="vertex_count">
+	/// - The number of indexed vertices to draw. (eg. A square has 4 vertices, but two vertices are reused
+	/// in the index buffer, so there are six.
+	/// </param>
+	/// <param name="vbuf1">- The primary data buffer</param>
+	/// <param name="vbuf2">
+	/// - (Optional) The secondary data buffer. If there are only per-vertex or per-instance attributes,
+	/// don't specify this buffer. If data is stored in a single buffer, leave this as default.
+	/// </param>
+	void bind_mesh_indexed(u32 vertex_count, RID indices, RID vbuf1, RID vbuf2 = U32_BAD);
 
-	void draw(u32 num_vertices, u32 num_instances);
+	/// <summary>
+	/// Draws the previously assigned mesh data, indexed or not.
+	/// </summary>
+	/// <param name="num_instances">
+	/// - The number of instances to draw. If there are no instance attributes, leave this at default
+	/// </param>
+	void draw(u32 num_instances = 1);
 
 	inline bool is_valid() const { return m_renderer; }
 };

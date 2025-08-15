@@ -9,10 +9,12 @@ ActiveCopyPass::ActiveCopyPass():
 	m_renderer(nullptr)
 {}
 
-void ActiveCopyPass::download_buffer(const byte *data, u32 length, SDL_GPUBuffer * source_buf, u32 offset) {}
+void ActiveCopyPass::download_buffer(const byte *data, u32 length, RID source_buf, u32 offset) {}
 
-void ActiveCopyPass::upload_buffer(byte *data, u32 length, SDL_GPUBuffer *dest_buf, u32 offset) {
+void ActiveCopyPass::upload_buffer(byte *data, u32 length, RID dest_buf, u32 offset) {
 	u32 size = length > TRANSFER_BUFFER_SIZE ? TRANSFER_BUFFER_SIZE : length;
+
+	SDL_GPUBuffer *buffer = m_renderer->get_buffer(dest_buf);
 
 	memmove(SDL_MapGPUTransferBuffer(m_renderer->get_device(), m_upload, true), data, size);
 
@@ -24,7 +26,7 @@ void ActiveCopyPass::upload_buffer(byte *data, u32 length, SDL_GPUBuffer *dest_b
 	};
 
 	SDL_GPUBufferRegion dest = {
-		.buffer = dest_buf,
+		.buffer = buffer,
 		.offset = offset,
 		.size = size
 	};

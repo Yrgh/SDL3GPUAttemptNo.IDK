@@ -12,9 +12,6 @@ SDL_calloc_func original_calloc;
 SDL_realloc_func original_realloc;
 SDL_free_func original_free;
 
-size_t total_allocs = 0;
-size_t total_frees = 0;
-
 extern "C" {
 void *my_malloc(size_t size) {
 	total_allocs++;
@@ -28,17 +25,18 @@ void *my_calloc(size_t nmemb, size_t size) {
 
 void *my_realloc(void *mem, size_t size) {
 	if (!mem) total_allocs++;
+	if (size == 0 && mem) total_allocs--;
 	return original_realloc(mem, size);
 }
 
 void my_free(void *mem) {
-	total_frees++;
+	total_allocs--;
 	original_free(mem);
 }
 }
 
 void at_exit() {
-	std::cout << "Leaked allocations: " << total_allocs - total_frees << "\n";
+	std::cout << "Leaked allocations: " << total_allocs << "\n";
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -46,6 +44,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 	SDL_GetOriginalMemoryFunctions(&original_malloc, &original_calloc, &original_realloc, &original_free);
 	SDL_SetMemoryFunctions(my_malloc, my_calloc, my_realloc, my_free);
 
+	std::cout << "Allocating app\n";
 	AppImpl *app = new AppImpl();
 	
 	app->_init();
@@ -76,5 +75,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
 		app->_on_fail();
 	}
 
+	std::cout << "Deallocating app\n";
 	delete app;
 }

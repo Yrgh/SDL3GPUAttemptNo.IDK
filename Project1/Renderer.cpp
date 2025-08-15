@@ -2,38 +2,30 @@
 
 u32 Renderer::get_unused_buffer() {
 	for (int i = 0; i < m_buffers.size(); ++i) {
-		if (m_buffers[i]) {
+		if (!m_buffers[i]) {
 			return i;
 		}
 	}
 	return U32_BAD;
 }
 
-Renderer::Renderer(SDL_Window *window, SDL_GPUDevice *device):
+u32 Renderer::get_unused_texture() {
+	for (int i = 0; i < m_user_textures.size(); ++i) {
+		if (!m_user_textures[i]) {
+			return i;
+		}
+	}
+	return U32_BAD;
+}
+
+Renderer::Renderer(SDL_Window *window):
 	m_targ_window(window)
 {
-	if (device) {
-		m_device = device;
-	} else {
-		m_device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, NULL);
-	}
+	m_device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, NULL);
 
 	SDL_GetWindowSizeInPixels(window, &m_winw, &m_winh);
 
 	SDL_ClaimWindowForGPUDevice(m_device, window);
-
-	/*SDL_GPUTextureCreateInfo dtci = {
-		.type = SDL_GPU_TEXTURETYPE_2D,
-		.format = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
-		.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
-		.width = (Uint32) m_winw,
-		.height = (Uint32) m_winh,
-		.layer_count_or_depth = 1,
-		.num_levels = 1,
-		.sample_count = SDL_GPU_SAMPLECOUNT_1
-	};
-
-	m_depth_tex = SDL_CreateGPUTexture(m_device, &dtci);*/
 
 	create_screen_texture(
 		SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
@@ -64,34 +56,78 @@ Renderer::Renderer(SDL_Window *window, SDL_GPUDevice *device):
 }
 
 Renderer::~Renderer() {
-	destroy();
+	clean_resources(RendererCleanupExclude::NONE);
 }
 
-void Renderer::destroy() {
-	if (!m_device) return;
-
-	m_shaders.clear();
-
-
-	SDL_ReleaseGPUTransferBuffer(m_device, m_upload_buffer);
-	SDL_ReleaseGPUTransferBuffer(m_device, m_download_buffer);
-
-	//SDL_ReleaseGPUTexture(m_device, m_depth_tex);
-
+void Renderer::clean_resources(RendererCleanupExclude exclude) {
+	bool exclude_internals = true;
+	bool exclude_shaders = true;
+	switch (exclude) {
+	case RendererCleanupExclude::NONE:
+		exclude_internals = false;
+	case RendererCleanupExclude::INTERNALS:
+		exclude_shaders = false;
+	case RendererCleanupExclude::DEFAULT:
+		break;
+	}
+	
 	for (int i = 0; i < m_buffers.size(); ++i) {
 		if (m_buffers[i]) {
 			SDL_ReleaseGPUBuffer(m_device, m_buffers[i]);
 		}
 	}
+	m_buffers.clear();
+	m_buffer_infos.clear();
 
-	for (int i = 0; i < m_screen_textures.size(); ++i) {
-		if (m_screen_textures[i]) {
-			SDL_ReleaseGPUTexture(m_device, m_screen_textures[i]);
+	// Unless we don't exclude internals, exclude the first screen texture (the depth texture)
+	if (exclude_internals) {
+		for (int i = 1; i < m_screen_textures.size(); ++i) {
+			if (m_screen_textures[i]) {
+				SDL_ReleaseGPUTexture(m_device, m_screen_textures[i]);
+			}
 		}
+		m_screen_textures.resize(1);
+		m_screen_tex_infos.resize(1);
+	} else {
+		for (int i = 0; i < m_screen_textures.size(); ++i) {
+			if (m_screen_textures[i]) {
+				SDL_ReleaseGPUTexture(m_device, m_screen_textures[i]);
+			}
+		}
+		m_screen_textures.clear();
+		m_screen_tex_infos.clear();
 	}
 
-	SDL_ReleaseWindowFromGPUDevice(m_device, m_targ_window);
-	SDL_DestroyGPUDevice(m_device);
+
+	for (int i = 0; i < m_user_textures.size(); ++i) {
+		if (m_user_textures[i]) {
+			SDL_ReleaseGPUTexture(m_device, m_user_textures[i]);
+		}
+	}
+	m_user_textures.clear();
+
+	for (int i = 0; i < m_samplers.size(); ++i) {
+		if (m_samplers[i]) {
+			SDL_ReleaseGPUSampler(m_device, m_samplers[i]);
+		}
+	}
+	m_samplers.clear();
+
+	if (!exclude_shaders) {
+		m_shaders.clear();
+	}
+
+	if (!exclude_internals) {
+		SDL_ReleaseGPUTransferBuffer(m_device, m_upload_buffer);
+		m_upload_buffer = nullptr;
+		SDL_ReleaseGPUTransferBuffer(m_device, m_download_buffer);
+		m_download_buffer = nullptr;
+
+		SDL_ReleaseWindowFromGPUDevice(m_device, m_targ_window);
+		m_targ_window = nullptr;
+		SDL_DestroyGPUDevice(m_device);
+		m_device = nullptr;
+	}
 }
 
 RID Renderer::add_shader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo &&pip) {
@@ -157,6 +193,7 @@ ActiveCopyPass Renderer::begin_copy_pass() {
 
 void Renderer::end_copy_pass(ActiveCopyPass acp) {
 	if (!acp.is_valid()) { return; }
+	acp.m_renderer = nullptr;
 
 	SDL_EndGPUCopyPass(acp.m_cp);
 
@@ -262,6 +299,7 @@ ActiveRenderPass Renderer::begin_custom_render_pass(CustomInfo description) {
 
 void Renderer::end_render_pass(ActiveRenderPass arp) {
 	if (!arp.is_valid()) { return; }
+	arp.m_renderer = nullptr;
 
 	SDL_EndGPURenderPass(arp.m_rp);
 
@@ -289,7 +327,7 @@ RID Renderer::create_buffer(SDL_GPUBufferUsageFlags usage, u32 size) {
 		m_buffers[location] = SDL_CreateGPUBuffer(m_device, &ci);
 		m_buffer_infos[location] = ci;
 
-		return location;
+		return RID(location);
 	}
 }
 
@@ -330,11 +368,55 @@ RID Renderer::create_screen_texture(SDL_GPUTextureFormat format, SDL_GPUTextureU
 		.usage = usage
 	});
 
-	return m_screen_textures.size() - 1;
+	return RID(m_screen_textures.size() - 1);
 }
 
 void Renderer::destroy_screen_texture(RID texture) {
 	SDL_ReleaseGPUTexture(m_device, m_screen_textures[*texture]);
 
 	m_screen_textures[*texture] = nullptr;
+}
+
+RID Renderer::create_texture(const SDL_GPUTextureCreateInfo *info) {
+	u32 location = get_unused_texture();
+
+	if (location == U32_BAD) {
+		m_user_textures.push_back(SDL_CreateGPUTexture(m_device, info));
+		return RID(m_buffers.size() - 1);
+	} else {
+		m_user_textures[location] = SDL_CreateGPUTexture(m_device, info);
+
+		return RID(location);
+	}
+}
+
+void Renderer::destroy_texture(RID texture) {
+	SDL_ReleaseGPUTexture(m_device, m_user_textures[*texture]);
+	m_user_textures[*texture] = nullptr;
+}
+
+bool Renderer::is_texture_valid(RID texture) {
+	if (*texture < 0 || *texture > m_user_textures.size()) return false;
+	return m_user_textures[*texture];
+}
+
+RID Renderer::create_sampler(bool linear_sample, bool clamp_uv, float anisotropy) {
+	SDL_GPUSamplerCreateInfo ci = {
+		.min_filter = linear_sample ? SDL_GPU_FILTER_LINEAR : SDL_GPU_FILTER_NEAREST,
+		.mag_filter = linear_sample ? SDL_GPU_FILTER_LINEAR : SDL_GPU_FILTER_NEAREST,
+		.mipmap_mode = linear_sample ? SDL_GPU_SAMPLERMIPMAPMODE_LINEAR : SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+		.address_mode_u = clamp_uv ? SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE : SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+		.address_mode_v = clamp_uv ? SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE : SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+		.address_mode_w = clamp_uv ? SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE : SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+		.mip_lod_bias = 0.0f,
+		.max_anisotropy = anisotropy,
+		//.compare_op = SDL_GPU_COMPAREOP_ALWAYS
+		.min_lod = 0.0f,
+		.max_lod = FLT_MAX,
+		.enable_anisotropy = anisotropy > 0.5f,
+		.enable_compare = false,
+	};
+
+	m_samplers.push_back(SDL_CreateGPUSampler(m_device, &ci));
+	return RID(m_samplers.size() - 1);
 }

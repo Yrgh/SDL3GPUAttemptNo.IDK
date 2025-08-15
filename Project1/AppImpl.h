@@ -9,6 +9,9 @@ class AppImpl : public Application {
 	SDL_Window *m_main_window;
 
 	RID m_vb;
+	RID m_ib;
+
+	RID m_texture0;
 
 	Renderer m_renderer;
 

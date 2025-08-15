@@ -20,20 +20,23 @@ void ActiveRenderPass::upload_vertex_uniform_buffer(u32 slot, const void *data, 
 	SDL_PushGPUVertexUniformData(m_cb, slot, data, length);
 }
 
-void ActiveRenderPass::bind_vertex_buffers(SDL_GPUBuffer *buf1, SDL_GPUBuffer *buf2) {
+void ActiveRenderPass::bind_mesh(u32 vertex_count, RID vbuf1, RID vbuf2) {
 	auto &pi = m_renderer->get_shader_info(m_active_shader);
+
+	SDL_GPUBuffer *vbuffer1 = m_renderer->get_buffer(vbuf1);
+	SDL_GPUBuffer *vbuffer2 = m_renderer->get_buffer(vbuf2);
 
 	bool per_vert_used = pi.vert_slot_offset != U32_BAD;
 	bool per_inst_used = pi.inst_slot_offset != U32_BAD;
 	if (per_vert_used && per_inst_used) {
 		SDL_GPUBufferBinding bindings[2] = {
 			{
-				.buffer = buf1,
-				.offset = pi.vert_slot_offset
+				.buffer = vbuffer1,
+				.offset = 0
 			},
 			{
-				.buffer = buf2 ? buf2 : buf1,
-				.offset = pi.inst_slot_offset
+				.buffer = vbuffer2 ? vbuffer2 : vbuffer1,
+				.offset = vbuffer2 ? 0 : pi.inst_slot_offset
 			}
 		};
 
@@ -41,8 +44,8 @@ void ActiveRenderPass::bind_vertex_buffers(SDL_GPUBuffer *buf1, SDL_GPUBuffer *b
 	} else if (per_vert_used) {
 		SDL_GPUBufferBinding bindings[1] = {
 			{
-				.buffer = buf1,
-				.offset = pi.vert_slot_offset
+				.buffer = vbuffer1,
+				.offset = 0
 			}
 		};
 
@@ -50,15 +53,75 @@ void ActiveRenderPass::bind_vertex_buffers(SDL_GPUBuffer *buf1, SDL_GPUBuffer *b
 	} else if (per_inst_used) {
 		SDL_GPUBufferBinding bindings[1] = {
 			{
-				.buffer = buf1,
-				.offset = pi.inst_slot_offset
+				.buffer = vbuffer1,
+				.offset = 0
 			}
 		};
 
 		SDL_BindGPUVertexBuffers(m_rp, 0, bindings, 1);
 	}
+
+	m_vertex_count = vertex_count;
+	m_indexed = false;
 }
 
-void ActiveRenderPass::draw(u32 num_vertices, u32 num_instances) {
-	SDL_DrawGPUPrimitives(m_rp, num_vertices, num_instances, 0, 0);
+void ActiveRenderPass::bind_mesh_indexed(u32 index_count, RID indices, RID vbuf1, RID vbuf2) {
+	auto &pi = m_renderer->get_shader_info(m_active_shader);
+
+	SDL_GPUBuffer *index_buffer = m_renderer->get_buffer(indices);
+	SDL_GPUBuffer *vbuffer1 = m_renderer->get_buffer(vbuf1);
+	SDL_GPUBuffer *vbuffer2 = m_renderer->get_buffer(vbuf2);
+
+	bool per_vert_used = pi.vert_slot_offset != U32_BAD;
+	bool per_inst_used = pi.inst_slot_offset != U32_BAD;
+	if (per_vert_used && per_inst_used) {
+		SDL_GPUBufferBinding bindings[2] = {
+			{
+				.buffer = vbuffer1,
+				.offset = 0
+			},
+			{
+				.buffer = vbuffer2 ? vbuffer2 : vbuffer1,
+				.offset = vbuffer2 ? 0 : pi.inst_slot_offset
+			}
+		};
+
+		SDL_BindGPUVertexBuffers(m_rp, 0, bindings, 2);
+	} else if (per_vert_used) {
+		SDL_GPUBufferBinding bindings[1] = {
+			{
+				.buffer = vbuffer1,
+				.offset = 0
+			}
+		};
+
+		SDL_BindGPUVertexBuffers(m_rp, 0, bindings, 1);
+	} else if (per_inst_used) {
+		SDL_GPUBufferBinding bindings[1] = {
+			{
+				.buffer = vbuffer1,
+				.offset = 0
+			}
+		};
+
+		SDL_BindGPUVertexBuffers(m_rp, 0, bindings, 1);
+	}
+
+	m_vertex_count = index_count;
+	m_indexed = true;
+
+	SDL_GPUBufferBinding ibb = {
+		.buffer = index_buffer,
+		.offset = 0
+	};
+
+	SDL_BindGPUIndexBuffer(m_rp, &ibb, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+}
+
+void ActiveRenderPass::draw(u32 num_instances) {
+	if (m_indexed) {
+		SDL_DrawGPUIndexedPrimitives(m_rp, m_vertex_count, num_instances, 0, 0, 0);
+	} else {
+		SDL_DrawGPUPrimitives(m_rp, m_vertex_count, num_instances, 0, 0);
+	}
 }

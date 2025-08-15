@@ -5,15 +5,16 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 {
 	// Create vertex shader
 	u32 shader_len;
-	byte *shader_code = read_whole_file(vs.path, shader_len);
+	std::cout << "Reading vs\n";
+	byte *vs_shader_code = read_whole_file(vs.path, shader_len);
 
-	if (!shader_code || shader_len < 1) {
+	if (!vs_shader_code || shader_len < 1) {
 		return;
 	}
 
 	SDL_GPUShaderCreateInfo sci = {
 		.code_size = shader_len,
-		.code = shader_code,
+		.code = vs_shader_code,
 		.entrypoint = "main",
 		.format = SDL_GPU_SHADERFORMAT_SPIRV,
 		.stage = SDL_GPU_SHADERSTAGE_VERTEX,
@@ -24,19 +25,20 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 	};
 
 	m_vs = SDL_CreateGPUShader(m_device, &sci);
-
-	delete[] shader_code;
+	std::cout << "Deleting vs\n";
+	delete[] vs_shader_code;
 
 	// Create fragment shader
-	shader_code = read_whole_file(fs.path, shader_len);
+	std::cout << "Reading vs\n";
+	byte *fs_shader_code = read_whole_file(fs.path, shader_len);
 
-	if (!shader_code || shader_len < 1) {
+	if (!fs_shader_code || shader_len < 1) {
 		return;
 	}
 
 	sci = {
 		.code_size = shader_len,
-		.code = shader_code,
+		.code = fs_shader_code,
 		.entrypoint = "main",
 		.format = SDL_GPU_SHADERFORMAT_SPIRV,
 		.stage = SDL_GPU_SHADERSTAGE_FRAGMENT,
@@ -47,8 +49,8 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 	};
 
 	m_fs = SDL_CreateGPUShader(m_device, &sci);
-
-	delete[] shader_code;
+	std::cout << "Deleting fs\n";
+	delete[] fs_shader_code;
 
 	// Create pipeline
 	SDL_GPUGraphicsPipelineCreateInfo gpci = {
@@ -62,6 +64,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 	u32 inst_slot = 1 - (u32) (pip.vert_attribs.empty());
 
 	u32 total_attribs = pip.vert_attribs.size() + pip.inst_attribs.size();
+	std::cout << "Allocating vertex attributes\n";
 	SDL_GPUVertexAttribute *vas = new SDL_GPUVertexAttribute[total_attribs];
 
 	u32 vert_attribs_step = 0;
@@ -99,6 +102,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 	}
 
 	// Load buffer descriptions to SDL format
+	std::cout << "Allocating vertex buffer descriptions\n";
 	SDL_GPUVertexBufferDescription *vbds = new SDL_GPUVertexBufferDescription[buffer_desc_count];
 	if (pip.vert_attribs.size() > 0) {
 		vbds[vert_slot] = {
@@ -150,6 +154,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.enable_stencil_test = pip.stencil_test
 	};
 
+	std::cout << "Allocating color target descriptions\n";
 	SDL_GPUColorTargetDescription *ctds = new SDL_GPUColorTargetDescription[pip.targets.size()];
 	for (int i = 0; i < pip.targets.size(); ++i) {
 		ctds[i] = {
@@ -186,7 +191,13 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		m_pipinfo.inst_slot_offset = vert_attribs_step;
 	else
 		m_pipinfo.inst_slot_offset = U32_BAD;
+	
+	m_pipinfo.target_formats.resize(pip.targets.size());
+	for (int i = 0; i < pip.targets.size(); ++i) {
+		m_pipinfo.target_formats[i] = pip.targets[i].format;
+	}
 
+	std::cout << "Deallocating VAs, VBDs, and CTDs\n";
 	delete[] vas;
 	delete[] vbds;
 	delete[] ctds;

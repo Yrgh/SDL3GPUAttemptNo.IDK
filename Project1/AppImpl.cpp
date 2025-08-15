@@ -15,23 +15,47 @@ struct Vertex {
 	} col;
 };
 
-const Vertex vertex_buffer[3] = {
+const Vertex vertex_buffer[4] = {
 	{
-		.pos = {
-			.x =  0.0f,
-			.y = -0.5f,
+		.pos = { // Bottom-left (0)
+			.x = -1.0f,
+			.y = -1.0f,
 			.z =  0.0f
 		},
 		.col = {
-			.r = 1.0f,
+			.r = 0.0f,
 			.g = 0.0f,
 			.b = 0.0f
 		}
 	},
-	{
+	{ // Bottom-right (1)
 		.pos = {
-			.x =  0.5f,
-			.y =  0.5f,
+			.x =  1.0,
+			.y = -1.0,
+			.z =  0.0
+		},
+		.col = {
+			.r = 1.0,
+			.g = 0.0,
+			.b = 0.0
+		}
+	},
+	{ // Top-right (2)
+		.pos = {
+			.x =  1.0f,
+			.y =  1.0f,
+			.z =  0.0f
+		},
+		.col = {
+			.r = 1.0f,
+			.g = 1.0f,
+			.b = 0.0f
+		}
+	},
+	{ // Top-left (3)
+		.pos = {
+			.x = -1.0f,
+			.y =  1.0f,
 			.z =  0.0f
 		},
 		.col = {
@@ -40,25 +64,26 @@ const Vertex vertex_buffer[3] = {
 			.b = 0.0f
 		}
 	},
-	{
-		.pos = {
-			.x = -0.5f,
-			.y =  0.5f,
-			.z =  0.0f
-		},
-		.col = {
-			.r = 0.0f,
-			.g = 0.0f,
-			.b = 1.0f
-		}
-	},
+};
+
+const u32 index_buffer[6] = {
+	0, 1, 2,
+	0, 2, 3
+};
+
+const SDL_FColor texture[4] = {
+	{ 0.0f, 0.0f, 0.0f, 1.0f},
+	{ 1.0f, 1.0f, 1.0f, 1.0f},
+	{ 0.0f, 0.0f, 0.5f, 1.0f},
+	{ 1.0f, 1.0f, 0.5f, 1.0f}
 };
 
 void AppImpl::process_tick() {
 
 	ActiveCopyPass acp = m_renderer.begin_copy_pass();
 	if (acp.is_valid()) {
-		acp.upload_buffer((byte *) vertex_buffer, sizeof(vertex_buffer), m_renderer.get_buffer(m_vb), 0);
+		acp.upload_buffer((byte *) vertex_buffer, sizeof(vertex_buffer), m_vb);
+		acp.upload_buffer((byte *) index_buffer, sizeof(index_buffer), m_ib);
 	}
 	m_renderer.end_copy_pass(std::move(acp));
 
@@ -73,14 +98,15 @@ void AppImpl::process_tick() {
 
 		arp.use_shader(m_shader0);
 
+		arp.bind_mesh_indexed(6, m_ib, m_vb);
+
 		// Upload uniforms
 		float bd0f[32] = { 0 };
 
 		// Generate projection & eye matrix, then copy to uniform buffer
 		mat4x4 eye = glm::identity<mat4x4>();
 		eye = glm::translate(eye, vec3(cos(this_tick_ms / 1000.0f), sin(this_tick_ms / 1000.0f), 0.0f));
-		
-		
+
 		mat4x4 eyeproj = m_renderer.generate_perspective(deg_to_rad(90.0)) * glm::inverse(eye);
 		memmove((byte *) (bd0f + 0), (void *) &eyeproj, sizeof(eyeproj));
 
@@ -93,8 +119,18 @@ void AppImpl::process_tick() {
 
 		arp.upload_vertex_uniform_buffer(0, (void *) bd0f, sizeof(bd0f));
 
-		arp.bind_vertex_buffers(m_renderer.get_buffer(m_vb));
-		arp.draw(3, 1);
+		arp.draw();
+
+		// Reupload uniforms
+		world = glm::identity<mat4x4>();
+		world = glm::translate(world, vec3(0.0f, -4.0f, -4.0f));
+		world = glm::scale(world, vec3(10.0));
+		world *= glm::mat4x4(glm::angleAxis(deg_to_rad(-90.0), vec3(1.0, 0.0, 0.0)));
+		memmove((byte *) (bd0f + 16), (void *) &world, sizeof(world));
+
+		arp.upload_vertex_uniform_buffer(0, (void *) bd0f, sizeof(bd0f));
+
+		arp.draw();
 	}
 	m_renderer.end_render_pass(std::move(arp));
 }
@@ -102,7 +138,7 @@ void AppImpl::process_tick() {
 void AppImpl::process_sdl_event(SDL_Event &event) {
 	switch (event.type) {
 	case SDL_EVENT_WINDOW_RESIZED: {
-		m_renderer.resize_window((u32) event.window.data1, (u32) event.window.data1);
+		m_renderer.resize_window((u32) event.window.data1, (u32) event.window.data2);
 	} break;
 	case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
 		if (event.window.windowID == SDL_GetWindowID(m_main_window)) {
@@ -172,6 +208,19 @@ void AppImpl::init() {
 	m_shader0 = m_renderer.add_shader(vert_stage, frag_stage, std::move(pip_info));
 
 	m_vb = m_renderer.create_buffer(SDL_GPU_BUFFERUSAGE_VERTEX, sizeof(vertex_buffer));
+	m_ib = m_renderer.create_buffer(SDL_GPU_BUFFERUSAGE_INDEX, sizeof(index_buffer));
+
+	SDL_GPUTextureCreateInfo t0ci = {
+		.type = SDL_GPU_TEXTURETYPE_2D,
+		.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+		.width = 2,
+		.height = 2,
+		.layer_count_or_depth = 1,
+		.num_levels = 2,
+	};
+
+	m_texture0 = m_renderer.create_texture(&t0ci);
 }
 
 void AppImpl::any_close() {}
