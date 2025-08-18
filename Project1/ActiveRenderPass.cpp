@@ -118,6 +118,36 @@ void ActiveRenderPass::bind_mesh_indexed(u32 index_count, RID indices, RID vbuf1
 	SDL_BindGPUIndexBuffer(m_rp, &ibb, SDL_GPU_INDEXELEMENTSIZE_32BIT);
 }
 
+void ActiveRenderPass::bind_vert_samplers(u32 first_slot, const std::vector<RID> &samplers, const std::vector<RID> &textures) {
+	assert(samplers.size() == textures.size());
+
+	auto bindings = new SDL_GPUTextureSamplerBinding[samplers.size()];
+	for (u32 i = 0; i < samplers.size(); i++) {
+		bindings[i] = {
+			.texture = m_renderer->get_texture(textures[i]),
+			.sampler = m_renderer->get_sampler(samplers[i])
+		};
+	}
+
+	SDL_BindGPUFragmentSamplers(m_rp, first_slot, bindings, samplers.size());
+	delete[] bindings;
+}
+
+void ActiveRenderPass::bind_frag_samplers(u32 first_slot, const std::vector<RID> &samplers, const std::vector<RID> &textures) {
+	assert(samplers.size() == textures.size());
+
+	auto bindings = new SDL_GPUTextureSamplerBinding[samplers.size()];
+	for (u32 i = 0; i < samplers.size(); i++) {
+		bindings[i] = {
+			.texture = m_renderer->get_texture(textures[i]),
+			.sampler = m_renderer->get_sampler(samplers[i])
+		};
+	}
+
+	SDL_BindGPUFragmentSamplers(m_rp, first_slot, bindings, samplers.size());
+	delete[] bindings;
+}
+
 void ActiveRenderPass::draw(u32 num_instances) {
 	if (m_indexed) {
 		SDL_DrawGPUIndexedPrimitives(m_rp, m_vertex_count, num_instances, 0, 0, 0);

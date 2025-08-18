@@ -2,6 +2,7 @@
 
 #include "Application.h"
 #include "Renderer.h"
+#include "Mesh.h"
 
 #include <SDL3/SDL_gpu.h>
 
@@ -11,17 +12,22 @@ class AppImpl : public Application {
 	RID m_vb;
 	RID m_ib;
 
+	Mesh m_mesh0;
+
 	RID m_texture0;
 	
-	RID m_linear_wrap_sampler;
+	RID m_quality_sampler;
+	RID m_precise_sampler;
 
 	Renderer m_renderer;
 
 	RID m_shader0;
 
-	size_t frame_num = 0;
-	u32 last_tick_ms = 0;
-	u32 this_tick_ms = 0;
+	u32 m_frame_num = 0;
+	u32 m_last_tick_ms = 0;
+	u32 m_this_tick_ms = 0;
+
+	std::vector<byte> m_texturedata0;
 
 	void any_close();
 

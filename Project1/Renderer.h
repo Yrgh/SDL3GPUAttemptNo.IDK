@@ -5,7 +5,11 @@
 #include "ActiveCopyPass.h"
 #include "ActiveRenderPass.h"
 
-inline const size_t TRANSFER_BUFFER_SIZE = 1024;
+// Must be at least the max texture width * the largest supported format
+// Currently: 16MiB
+inline const u32 TRANSFER_BUFFER_SIZE = 1024 * 1024 * 16;
+
+// NOTE: Compressed texture formats are not supported (yet)
 
 struct CustomTargetInfo {
 	SDL_GPUTexture *texture;
@@ -30,7 +34,6 @@ enum class RendererCleanupExclude {
 	NONE, // Used by the destructor
 	INTERNALS, // Exclude internals
 	DEFAULT // Exclude both shaders and internals
-
 };
 
 struct TextureState {
@@ -38,12 +41,14 @@ struct TextureState {
 	bool dirty_mip;
 
 	SDL_GPUTextureFormat format;
+	SDL_GPUTextureType type;
+	SDL_GPUTextureUsageFlags usage;
 
 	u32 width, height, depth;
 };
 
 class Renderer {
-	SDL_GPUDevice *m_device;
+	SDL_GPUDevice *m_device = nullptr;
 
 	std::vector<VisualShader> m_shaders;
 
@@ -78,6 +83,9 @@ class Renderer {
 
 	u32 get_unused_buffer();
 	u32 get_unused_texture();
+
+	friend class RenderRetarget;
+
 public:
 	// This does nothing and initializes nothing. NEVER use instances initialized this way.
 	inline Renderer() {}
@@ -207,6 +215,8 @@ public:
 	
 	/// <summary>
 	/// Creates a texture. Slots of deleted textures will be reused.
+	/// 
+	/// Additionally, if 0 is passed for the mip levels, a value will be assigned automatically
 	/// </summary>
 	/// <param name="info">- The info that will be provided directly to SDL</param>
 	/// <returns>An RID representing the texture</returns>
@@ -218,7 +228,7 @@ public:
 		return *texture == U32_BAD ? nullptr : m_user_textures[*texture];
 	}
 
-	inline const TextureState &get_texture_info(RID texture) const {
+	inline TextureState &get_texture_info(RID texture) {
 		return m_texture_states[*texture];
 	}
 	

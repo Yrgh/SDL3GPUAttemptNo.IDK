@@ -1,7 +1,7 @@
 #include "Renderer.h"
 
 u32 Renderer::get_unused_buffer() {
-	for (int i = 0; i < m_buffers.size(); ++i) {
+	for (u32 i = 0; i < m_buffers.size(); ++i) {
 		if (!m_buffers[i]) {
 			return i;
 		}
@@ -10,7 +10,7 @@ u32 Renderer::get_unused_buffer() {
 }
 
 u32 Renderer::get_unused_texture() {
-	for (int i = 0; i < m_user_textures.size(); ++i) {
+	for (u32 i = 0; i < m_user_textures.size(); ++i) {
 		if (!m_user_textures[i]) {
 			return i;
 		}
@@ -60,6 +60,8 @@ Renderer::~Renderer() {
 }
 
 void Renderer::clean_resources(RendererCleanupExclude exclude) {
+	if (!m_device) return;
+
 	bool exclude_internals = true;
 	bool exclude_shaders = true;
 	switch (exclude) {
@@ -71,7 +73,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 		break;
 	}
 	
-	for (int i = 0; i < m_buffers.size(); ++i) {
+	for (u32 i = 0; i < m_buffers.size(); ++i) {
 		if (m_buffers[i]) {
 			SDL_ReleaseGPUBuffer(m_device, m_buffers[i]);
 		}
@@ -81,7 +83,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 
 	// Unless we don't exclude internals, exclude the first screen texture (the depth texture)
 	if (exclude_internals) {
-		for (int i = 1; i < m_screen_textures.size(); ++i) {
+		for (u32 i = 1; i < m_screen_textures.size(); ++i) {
 			if (m_screen_textures[i]) {
 				SDL_ReleaseGPUTexture(m_device, m_screen_textures[i]);
 			}
@@ -89,7 +91,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 		m_screen_textures.resize(1);
 		m_screen_tex_infos.resize(1);
 	} else {
-		for (int i = 0; i < m_screen_textures.size(); ++i) {
+		for (u32 i = 0; i < m_screen_textures.size(); ++i) {
 			if (m_screen_textures[i]) {
 				SDL_ReleaseGPUTexture(m_device, m_screen_textures[i]);
 			}
@@ -99,7 +101,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 	}
 
 
-	for (int i = 0; i < m_user_textures.size(); ++i) {
+	for (u32 i = 0; i < m_user_textures.size(); ++i) {
 		if (m_user_textures[i]) {
 			SDL_ReleaseGPUTexture(m_device, m_user_textures[i]);
 		}
@@ -107,7 +109,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 	m_user_textures.clear();
 	m_texture_states.clear();
 
-	for (int i = 0; i < m_samplers.size(); ++i) {
+	for (u32 i = 0; i < m_samplers.size(); ++i) {
 		if (m_samplers[i]) {
 			SDL_ReleaseGPUSampler(m_device, m_samplers[i]);
 		}
@@ -126,6 +128,7 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 
 		SDL_ReleaseWindowFromGPUDevice(m_device, m_targ_window);
 		m_targ_window = nullptr;
+
 		SDL_DestroyGPUDevice(m_device);
 		m_device = nullptr;
 	}
@@ -143,22 +146,7 @@ void Renderer::resize_window(u32 new_w, u32 new_h) {
 	m_viewport.w = (float) new_w;
 	m_viewport.h = (float) new_h;
 
-	/*SDL_ReleaseGPUTexture(m_device, m_depth_tex);
-
-	SDL_GPUTextureCreateInfo dtci = {
-		.type = SDL_GPU_TEXTURETYPE_2D,
-		.format = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
-		.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
-		.width = (Uint32) new_w,
-		.height = (Uint32) new_h,
-		.layer_count_or_depth = 1,
-		.num_levels = 1,
-		.sample_count = SDL_GPU_SAMPLECOUNT_1
-	};
-
-	m_depth_tex = SDL_CreateGPUTexture(m_device, &dtci);*/
-
-	for (int i = 0; i < m_screen_textures.size(); ++i) {
+	for (u32 i = 0; i < m_screen_textures.size(); ++i) {
 		if (!m_screen_textures[i]) continue;
 
 		SDL_ReleaseGPUTexture(m_device, m_screen_textures[i]);
@@ -199,7 +187,7 @@ void Renderer::end_copy_pass(ActiveCopyPass acp) {
 	SDL_EndGPUCopyPass(acp.m_cp);
 
 	// Do non-pass processing
-	for (int i = 0; i < m_user_textures.size(); ++i) {
+	for (u32 i = 0; i < m_user_textures.size(); ++i) {
 		if (m_user_textures[i] && m_texture_states[i].dirty_mip) {
 			SDL_GenerateMipmapsForGPUTexture(acp.m_cb, m_user_textures[i]);
 		}
@@ -265,7 +253,7 @@ ActiveRenderPass Renderer::begin_custom_render_pass(CustomInfo description) {
 	SDL_GPUCommandBuffer *cb = SDL_AcquireGPUCommandBuffer(m_device);
 
 	SDL_GPUColorTargetInfo *ctis = new SDL_GPUColorTargetInfo[description.color_targets.size()];
-	for (int i = 0; i < description.color_targets.size(); ++i) {
+	for (u32 i = 0; i < description.color_targets.size(); ++i) {
 		ctis[i] = {
 			.texture = description.color_targets[i].texture,
 			.mip_level = 0,
@@ -388,26 +376,49 @@ void Renderer::destroy_screen_texture(RID texture) {
 RID Renderer::create_texture(const SDL_GPUTextureCreateInfo *info) {
 	u32 location = get_unused_texture();
 
+	SDL_GPUTextureCreateInfo mut_info = *info;
+
+	// Get Po2 of the largest dimension
+	if (mut_info.num_levels == 0) {
+		mut_info.num_levels = 0;
+		u32 dim = mut_info.width > mut_info.height ? mut_info.width : mut_info.height;
+
+		if (mut_info.type == SDL_GPU_TEXTURETYPE_3D && mut_info.layer_count_or_depth > dim) {
+			dim = mut_info.layer_count_or_depth;
+		}
+
+		// Divide by two until we get to 1, or we hit the max
+		while ((dim >>= 1) > 0) mut_info.num_levels++;
+	} else {
+		mut_info.num_levels = mut_info.num_levels;
+	}
+
+	std::cout << mut_info.width << "x" << mut_info.height << ": Mip levels: " << mut_info.num_levels << "\n";
+
 	if (location == U32_BAD) {
-		m_user_textures.push_back(SDL_CreateGPUTexture(m_device, info));
+		m_user_textures.push_back(SDL_CreateGPUTexture(m_device, &mut_info));
 		m_texture_states.push_back(TextureState{
-			.mip_levels = info->num_levels,
-			.dirty_mip = info->num_levels > 1,
-			.format = info->format,
-			.width = info->width,
-			.height = info->height,
-			.depth = info->layer_count_or_depth
+			.mip_levels = mut_info.num_levels,
+			.dirty_mip = mut_info.num_levels > 1,
+			.format = mut_info.format,
+			.type = mut_info.type,
+			.usage = mut_info.usage,
+			.width = mut_info.width,
+			.height = mut_info.height,
+			.depth = mut_info.layer_count_or_depth
 		});
 		return RID(m_user_textures.size() - 1);
 	} else {
-		m_user_textures[location] = SDL_CreateGPUTexture(m_device, info);
+		m_user_textures[location] = SDL_CreateGPUTexture(m_device, &mut_info);
 		m_texture_states[location] = TextureState{
-			.mip_levels = info->num_levels,
-			.dirty_mip = info->num_levels > 1,
-			.format = info->format,
-			.width = info->width,
-			.height = info->height,
-			.depth = info->layer_count_or_depth
+			.mip_levels = mut_info.num_levels,
+			.dirty_mip = mut_info.num_levels > 1,
+			.format = mut_info.format,
+			.type = mut_info.type,
+			.usage = mut_info.usage,
+			.width = mut_info.width,
+			.height = mut_info.height,
+			.depth = mut_info.layer_count_or_depth
 		};
 
 		return RID(location);

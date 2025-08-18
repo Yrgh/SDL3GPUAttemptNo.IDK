@@ -48,7 +48,7 @@ class VisualShader {
 
 	SDL_GPUGraphicsPipeline *m_rp;
 
-	SDL_GPUDevice *m_device;
+	SDL_GPUDevice *s_device;
 
 	CompiledPipelineInfo m_pipinfo;
 

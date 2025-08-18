@@ -34,8 +34,9 @@ inline auto deg_to_rad = glm::radians<float>;
 
 #define BIT_CAST(expr, to) (*(to *)(expr))
 
-using byte = uint8_t;
+#define LENGTHOF(array) (sizeof(array) / sizeof(array[0]))
 
+using byte = uint8_t;
 typedef uint32_t u32;
 
 /*
@@ -43,7 +44,7 @@ typedef uint32_t u32;
  * o_size will be set to the file size
  * If there are any errors, returns nullptr and sets o_size to -1
 */
-byte *read_whole_file(std::string filename, u32 &o_size);
+byte *read_whole_file(std::string filename, u32 *o_size);
 
 class RID {
 	u32 m_number;

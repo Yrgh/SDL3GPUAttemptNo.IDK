@@ -1,12 +1,12 @@
 #include "Shader.h"
 
 VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo &&pip, SDL_GPUDevice *device):
-	m_device(device)
+	s_device(device)
 {
 	// Create vertex shader
 	u32 shader_len;
 	std::cout << "Reading vs\n";
-	byte *vs_shader_code = read_whole_file(vs.path, shader_len);
+	byte *vs_shader_code = read_whole_file(vs.path, &shader_len);
 
 	if (!vs_shader_code || shader_len < 1) {
 		return;
@@ -24,13 +24,13 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.num_uniform_buffers = vs.num_uniform_buffers,
 	};
 
-	m_vs = SDL_CreateGPUShader(m_device, &sci);
+	m_vs = SDL_CreateGPUShader(s_device, &sci);
 	std::cout << "Deleting vs\n";
 	delete[] vs_shader_code;
 
 	// Create fragment shader
 	std::cout << "Reading vs\n";
-	byte *fs_shader_code = read_whole_file(fs.path, shader_len);
+	byte *fs_shader_code = read_whole_file(fs.path, &shader_len);
 
 	if (!fs_shader_code || shader_len < 1) {
 		return;
@@ -48,7 +48,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.num_uniform_buffers = fs.num_uniform_buffers,
 	};
 
-	m_fs = SDL_CreateGPUShader(m_device, &sci);
+	m_fs = SDL_CreateGPUShader(s_device, &sci);
 	std::cout << "Deleting fs\n";
 	delete[] fs_shader_code;
 
@@ -156,7 +156,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 
 	std::cout << "Allocating color target descriptions\n";
 	SDL_GPUColorTargetDescription *ctds = new SDL_GPUColorTargetDescription[pip.targets.size()];
-	for (int i = 0; i < pip.targets.size(); ++i) {
+	for (u32 i = 0; i < pip.targets.size(); ++i) {
 		ctds[i] = {
 			.format = pip.targets[0].format,
 			.blend_state = {
@@ -179,7 +179,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.has_depth_stencil_target = true
 	};
 
-	m_rp = SDL_CreateGPUGraphicsPipeline(m_device, &gpci);
+	m_rp = SDL_CreateGPUGraphicsPipeline(s_device, &gpci);
 
 	// Save the info for later
 	if (pip.vert_attribs.size() > 0)
@@ -193,7 +193,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		m_pipinfo.inst_slot_offset = U32_BAD;
 	
 	m_pipinfo.target_formats.resize(pip.targets.size());
-	for (int i = 0; i < pip.targets.size(); ++i) {
+	for (u32 i = 0; i < pip.targets.size(); ++i) {
 		m_pipinfo.target_formats[i] = pip.targets[i].format;
 	}
 
@@ -205,15 +205,15 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 
 VisualShader::~VisualShader() {
 	if (m_rp) {
-		SDL_ReleaseGPUGraphicsPipeline(m_device, m_rp);
+		SDL_ReleaseGPUGraphicsPipeline(s_device, m_rp);
 	}
 
 	if (m_fs) {
-		SDL_ReleaseGPUShader(m_device, m_fs);
+		SDL_ReleaseGPUShader(s_device, m_fs);
 	}
 
 	if (m_vs) {
-		SDL_ReleaseGPUShader(m_device, m_vs);
+		SDL_ReleaseGPUShader(s_device, m_vs);
 	}
 }
 

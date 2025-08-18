@@ -39,6 +39,15 @@
     <ClCompile Include="ActiveCopyPass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MiniLibs\lodepng.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderRetarget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -62,8 +71,19 @@
     <ClInclude Include="ActiveCopyPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MiniLibs\lodepng.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderRetarget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Conventions.md" />
+    <None Include="shader0.frag" />
+    <None Include="shader0.vert" />
   </ItemGroup>
 </Project>

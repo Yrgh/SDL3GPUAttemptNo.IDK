@@ -13,6 +13,7 @@ class ActiveCopyPass {
 	SDL_GPUTransferBuffer *m_download;
 
 	friend class Renderer;
+	friend class RenderRetarget;
 
 	ActiveCopyPass(Renderer &);
 public:
