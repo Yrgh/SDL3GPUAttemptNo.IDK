@@ -5,82 +5,11 @@
 
 #include "MiniLibs/lodepng.h"
 
-struct Vertex {
-	struct {
-		float x;
-		float y;
-		float z;
-	} pos;
-	struct {
-		float u;
-		float v;
-	} uv;
-};
-
-const Vertex vertex_buffer[4] = {
-	{
-		.pos = { // Bottom-left (0)
-			.x = -1.0f,
-			.y = -1.0f,
-			.z =  0.0f
-		},
-		.uv = {
-			.u = 0.0f,
-			.v = 1.0f,
-		}
-	},
-	{ // Bottom-right (1)
-		.pos = {
-			.x =  1.0f,
-			.y = -1.0f,
-			.z =  0.0f
-		},
-		.uv = {
-			.u = 1.0f,
-			.v = 1.0f,
-		}
-	},
-	{ // Top-right (2)
-		.pos = {
-			.x =  1.0f,
-			.y =  1.0f,
-			.z =  0.0f
-		},
-		.uv = {
-			.u = 1.0f,
-			.v = 0.0f,
-		}
-	},
-	{ // Top-left (3)
-		.pos = {
-			.x = -1.0f,
-			.y =  1.0f,
-			.z =  0.0f
-		},
-		.uv = {
-			.u = 0.0f,
-			.v = 0.0f,
-		}
-	},
-};
-
-const u32 index_buffer[6] = {
-	0, 1, 2,
-	0, 2, 3
-};
-
-const byte texture[16] = {
-	0  , 0  , 0  , 255, /**/ 127, 255, 255, 255,
-	255, 255, 255, 255, /**/ 127, 0  , 0  , 255,
-};
-
 void AppImpl::process_tick() {
 	ActiveCopyPass acp = m_renderer.begin_copy_pass();
 	if (acp.is_valid()) {
-		/*acp.upload_buffer((byte *) vertex_buffer, sizeof(vertex_buffer), m_vb);
-		acp.upload_buffer((byte *) index_buffer, sizeof(index_buffer), m_ib);*/
-
 		m_mesh0.upload(acp);
+		m_mesh1.upload(acp);
 
 		acp.upload_texture(m_texturedata0.data(), m_texturedata0.size(), m_texture0);
 	}
@@ -96,8 +25,9 @@ void AppImpl::process_tick() {
 		m_last_tick_ms = m_this_tick_ms;
 
 		arp.use_shader(m_shader0);
+		
+		// First draw
 
-		//arp.bind_mesh_indexed(6, m_ib, m_vb);
 		m_mesh0.bind(arp);
 
 		arp.bind_frag_samplers(0, {m_quality_sampler}, {m_texture0});
@@ -123,6 +53,10 @@ void AppImpl::process_tick() {
 
 		arp.draw();
 
+		// Second draw
+
+		m_mesh1.bind(arp);
+
 		// Reupload uniforms
 		world = glm::identity<mat4x4>();
 		world = glm::translate(world, vec3(0.0f, -4.0f, -4.0f));
@@ -136,7 +70,7 @@ void AppImpl::process_tick() {
 	}
 	m_renderer.end_render_pass(std::move(arp));
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(15));
+	//std::this_thread::sleep_for(std::chrono::milliseconds(15));
 }
 
 void AppImpl::process_sdl_event(SDL_Event &event) {
@@ -170,6 +104,14 @@ void AppImpl::init() {
 	// I'm not even going to try to deal with the bugginess. "Placement new, go!"
 	new (&m_renderer) Renderer(m_main_window);
 
+	// Assign mesh attributes
+	m_mesh_attributes = AttributeList {
+		{ MESHATTRIBUTE_FLOAT3, "POSITION"},
+		{ MESHATTRIBUTE_FLOAT2, "TEXCOORD_0"},
+		{ MESHATTRIBUTE_FLOAT3, "NORMAL"},
+	};
+
+	// Create shader
 	ShaderStageInfo vert_stage = {
 			.path = "shader0.vert.spv",
 			.num_samplers = 0,
@@ -195,29 +137,23 @@ void AppImpl::init() {
 				.alpha_blending = true
 			}
 		},
-		.vert_attribs = {
-			{ // Position
-				.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-				.size = 4 * 3
-			},
-			{ // UV
-				.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
-				.size = 4 * 2
-			},
-		},
+		.vert_attribs = m_mesh_attributes,
 		.inst_attribs = {},
 		.cull_mode = SDL_GPU_CULLMODE_NONE
 	};
 
 	m_shader0 = m_renderer.add_shader(vert_stage, frag_stage, std::move(pip_info));
 
-	/*m_vb = m_renderer.create_buffer(SDL_GPU_BUFFERUSAGE_VERTEX, sizeof(vertex_buffer));
-	m_ib = m_renderer.create_buffer(SDL_GPU_BUFFERUSAGE_INDEX, sizeof(index_buffer));*/
+	// Load mesh
+	u32 mesh0dl;
+	byte *mesh0d = read_whole_file("Suzanne.glb", &mesh0dl);
+	new (&m_mesh0) Mesh(Mesh::load_glb_memory(m_renderer, mesh0d, mesh0dl, m_mesh_attributes));
 
-	new (&m_mesh0) Mesh(m_renderer,
-		std::vector<byte>((byte *) vertex_buffer, (byte *) vertex_buffer + sizeof(vertex_buffer)),
-		std::vector<u32>(index_buffer, index_buffer + LENGTHOF(index_buffer)));
+	u32 mesh1dl;
+	byte *mesh1d = read_whole_file("coolbox.glb", &mesh1dl);
+	new (&m_mesh1) Mesh(Mesh::load_glb_memory(m_renderer, mesh1d, mesh1dl, m_mesh_attributes));
 
+	// Load texture
 	u32 td0bl;
 	byte *t0db= read_whole_file("texture0.png", &td0bl);
 
@@ -244,6 +180,7 @@ void AppImpl::init() {
 
 void AppImpl::any_close() {
 	m_mesh0.destroy();
+	m_mesh1.destroy();
 
 	m_renderer.clean_resources(RendererCleanupExclude::NONE);
 

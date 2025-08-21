@@ -1,7 +1,7 @@
 #include "Shader.h"
 
 VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo &&pip, SDL_GPUDevice *device):
-	s_device(device)
+	m_device(device)
 {
 	// Create vertex shader
 	u32 shader_len;
@@ -24,7 +24,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.num_uniform_buffers = vs.num_uniform_buffers,
 	};
 
-	m_vs = SDL_CreateGPUShader(s_device, &sci);
+	m_vs = SDL_CreateGPUShader(m_device, &sci);
 	std::cout << "Deleting vs\n";
 	delete[] vs_shader_code;
 
@@ -48,7 +48,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.num_uniform_buffers = fs.num_uniform_buffers,
 	};
 
-	m_fs = SDL_CreateGPUShader(s_device, &sci);
+	m_fs = SDL_CreateGPUShader(m_device, &sci);
 	std::cout << "Deleting fs\n";
 	delete[] fs_shader_code;
 
@@ -72,11 +72,11 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		vas[i] = {
 			.location = i,
 			.buffer_slot = vert_slot,
-			.format = pip.vert_attribs[i].format,
+			.format = common_to_SDL_GPUVertexElementFormat(pip.vert_attribs[i].first),
 			.offset = vert_attribs_step
 		};
 
-		vert_attribs_step += pip.vert_attribs[i].size;
+		vert_attribs_step += mesh_attribute_sizes[pip.vert_attribs[i].first];
 	}
 
 	u32 inst_attribs_step = 0;
@@ -85,11 +85,11 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		vas[j] = {
 			.location = j,
 			.buffer_slot = inst_slot,
-			.format = pip.inst_attribs[i].format,
+			.format = common_to_SDL_GPUVertexElementFormat(pip.inst_attribs[i].first),
 			.offset = inst_attribs_step
 		};
 
-		inst_attribs_step += pip.inst_attribs[i].size;
+		inst_attribs_step += mesh_attribute_sizes[pip.inst_attribs[i].first];
 	}
 
 	u32 buffer_desc_count = 0;
@@ -179,7 +179,7 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 		.has_depth_stencil_target = true
 	};
 
-	m_rp = SDL_CreateGPUGraphicsPipeline(s_device, &gpci);
+	m_rp = SDL_CreateGPUGraphicsPipeline(m_device, &gpci);
 
 	// Save the info for later
 	if (pip.vert_attribs.size() > 0)
@@ -205,15 +205,15 @@ VisualShader::VisualShader(ShaderStageInfo vs, ShaderStageInfo fs, PipelineInfo 
 
 VisualShader::~VisualShader() {
 	if (m_rp) {
-		SDL_ReleaseGPUGraphicsPipeline(s_device, m_rp);
+		SDL_ReleaseGPUGraphicsPipeline(m_device, m_rp);
 	}
 
 	if (m_fs) {
-		SDL_ReleaseGPUShader(s_device, m_fs);
+		SDL_ReleaseGPUShader(m_device, m_fs);
 	}
 
 	if (m_vs) {
-		SDL_ReleaseGPUShader(s_device, m_vs);
+		SDL_ReleaseGPUShader(m_device, m_vs);
 	}
 }
 

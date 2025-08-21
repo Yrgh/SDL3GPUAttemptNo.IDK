@@ -2,6 +2,16 @@
 
 #include "common.h"
 #include "Renderer.h"
+#include "MeshAttributes.h"
+
+#define TINYGLTF_NO_STB_IMAGE
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_NO_EXTERNAL_IMAGE
+#define TINYGLTF_NO_EXCEPTION
+#include "MiniLibs/tiny_gltf.h"
+
+namespace tg = tinygltf;
+using tg::TinyGLTF;
 
 class Mesh {
 	enum DirtyState {
@@ -20,7 +30,12 @@ class Mesh {
 
 	u32 m_dirtiness = DIRTY_NONE;
 
+	static Mesh parse_tg_model(Renderer &renderer, const tg::Model &model, const AttributeList &attributes);
+
 public:
+	static Mesh load_glb_memory(Renderer &renderer, const byte *data, u32 length, const AttributeList &attributes);
+	static Mesh load_gltf_string(Renderer &renderer, const std::string &data, const AttributeList &attributes);
+
 	// This does nothing and initializes nothing. NEVER use instances initialized this way.
 	inline Mesh() {}
 

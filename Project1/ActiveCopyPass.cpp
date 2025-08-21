@@ -11,7 +11,7 @@ ActiveCopyPass::ActiveCopyPass():
 
 void ActiveCopyPass::upload_buffer(byte *data, u32 length, RID dest_buf) {
 	SDL_GPUBuffer *buffer = m_renderer->get_buffer(dest_buf);
-	bool cycle_texture = true;
+	bool cycle_buffer = true;
 
 	SDL_GPUTransferBufferLocation source = {
 		.transfer_buffer = m_upload,
@@ -33,9 +33,9 @@ void ActiveCopyPass::upload_buffer(byte *data, u32 length, RID dest_buf) {
 		dest.offset = offset;
 		dest.size = size;
 
-		SDL_UploadToGPUBuffer(m_cp, &source, &dest, cycle_texture);
+		SDL_UploadToGPUBuffer(m_cp, &source, &dest, cycle_buffer);
 		// Only cycle the first time
-		cycle_texture = false;
+		cycle_buffer = false;
 
 		offset += size;
 	}

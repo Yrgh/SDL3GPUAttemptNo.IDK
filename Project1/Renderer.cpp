@@ -174,7 +174,6 @@ ActiveCopyPass Renderer::begin_copy_pass() {
 	auto acp = ActiveCopyPass(*this);
 	acp.m_cb = cb;
 	acp.m_cp = cp;
-	acp.m_download = m_download_buffer;
 	acp.m_upload = m_upload_buffer;
 
 	return acp;
@@ -318,11 +317,13 @@ RID Renderer::create_buffer(SDL_GPUBufferUsageFlags usage, u32 size) {
 		m_buffers.push_back(SDL_CreateGPUBuffer(m_device, &ci));
 		m_buffer_infos.push_back(ci);
 
+		std::cout << "Created new slot " << m_buffers.size() - 1 << "\n";
 		return RID(m_buffers.size() - 1);
 	} else {
 		m_buffers[location] = SDL_CreateGPUBuffer(m_device, &ci);
 		m_buffer_infos[location] = ci;
 
+		std::cout << "Reused slot " << location << "\n";
 		return RID(location);
 	}
 }

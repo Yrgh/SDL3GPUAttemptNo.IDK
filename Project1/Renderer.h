@@ -69,7 +69,6 @@ class Renderer {
 	SDL_GPUViewport m_viewport;
 
 	SDL_GPUTransferBuffer *m_upload_buffer;
-	SDL_GPUTransferBuffer *m_download_buffer;
 
 	friend class ActiveRenderPass;
 

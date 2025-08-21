@@ -4,8 +4,14 @@
 
 #include <iostream>
 
-#include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NO_STB_IMAGE
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_NO_EXTERNAL_IMAGE
+#define TINYGLTF_NO_EXCEPTION
+#include "MiniLibs/tiny_gltf.h"
 
 SDL_malloc_func original_malloc;
 SDL_calloc_func original_calloc;

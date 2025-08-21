@@ -160,17 +160,22 @@
     <ClInclude Include="ActiveRenderPass.h" />
     <ClInclude Include="AppImpl.h" />
     <ClInclude Include="Application.h" />
+    <ClInclude Include="MeshAttributes.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="MiniLibs\json.hpp" />
     <ClInclude Include="MiniLibs\lodepng.h" />
+    <ClInclude Include="MiniLibs\tiny_gltf.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RenderRetarget.h" />
     <ClInclude Include="Shader.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Conventions.md" />
+    <None Include="coolbox.glb" />
     <None Include="shader0.frag" />
     <None Include="shader0.vert" />
+    <None Include="Suzanne.glb" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\SDL-release-3.2.20\VisualC\SDL\SDL.vcxproj">

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <unordered_set>
 #include <random>
 #include <cmath>
@@ -24,6 +25,7 @@ using glm::vec4, glm::vec3, glm::vec2, glm::mat4x4, glm::quat;
 
 template<class T> using Set = std::unordered_set<T>;
 template<class K, class V> using Map = std::unordered_map<K, V>;
+template<class K, class V> using OrderedMap = std::map<K, V>;
 
 inline auto deg_to_rad = glm::radians<float>;
 

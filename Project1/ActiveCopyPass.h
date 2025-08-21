@@ -10,7 +10,6 @@ class ActiveCopyPass {
 	SDL_GPUCopyPass *m_cp;
 
 	SDL_GPUTransferBuffer *m_upload;
-	SDL_GPUTransferBuffer *m_download;
 
 	friend class Renderer;
 	friend class RenderRetarget;
@@ -25,7 +24,6 @@ public:
 	ActiveCopyPass(ActiveCopyPass &&) noexcept = default;
 	ActiveCopyPass &operator=(ActiveCopyPass &&) noexcept = default;
 
-	void download_buffer(const byte *data, u32 length, RID source_buf);
 	void upload_buffer(byte *data, u32 length, RID dest_buf);
 
 	void upload_texture(byte *data, u32 length, RID dest_tex);

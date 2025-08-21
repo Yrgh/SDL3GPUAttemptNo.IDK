@@ -13,6 +13,7 @@ class AppImpl : public Application {
 	RID m_ib;
 
 	Mesh m_mesh0;
+	Mesh m_mesh1;
 
 	RID m_texture0;
 	
@@ -20,6 +21,8 @@ class AppImpl : public Application {
 	RID m_precise_sampler;
 
 	Renderer m_renderer;
+
+	AttributeList m_mesh_attributes;
 
 	RID m_shader0;
 

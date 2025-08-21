@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "MeshAttributes.h"
 
 struct ShaderStageInfo {
 	std::string path;
@@ -15,11 +16,6 @@ struct ColorTargetInfo {
 	bool alpha_blending;
 };
 
-struct VertexAttribute {
-	SDL_GPUVertexElementFormat format;
-	u32 size;
-};
-
 struct PipelineInfo {
 	// If true, enables depth testing and the depth color target
 	bool depth_test;
@@ -27,8 +23,8 @@ struct PipelineInfo {
 
 	std::vector<ColorTargetInfo> targets;
 
-	std::vector<VertexAttribute> vert_attribs;
-	std::vector<VertexAttribute> inst_attribs;
+	AttributeList vert_attribs;
+	AttributeList inst_attribs;
 
 	SDL_GPUCullMode cull_mode;
 };
@@ -48,7 +44,7 @@ class VisualShader {
 
 	SDL_GPUGraphicsPipeline *m_rp;
 
-	SDL_GPUDevice *s_device;
+	SDL_GPUDevice *m_device;
 
 	CompiledPipelineInfo m_pipinfo;
 

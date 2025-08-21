@@ -39,13 +39,13 @@
     <ClCompile Include="ActiveCopyPass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MiniLibs\lodepng.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Mesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RenderRetarget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MiniLibs\lodepng.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -71,13 +71,22 @@
     <ClInclude Include="ActiveCopyPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MiniLibs\lodepng.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Mesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RenderRetarget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniLibs\lodepng.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniLibs\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniLibs\tiny_gltf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshAttributes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -85,5 +94,7 @@
     <None Include="Conventions.md" />
     <None Include="shader0.frag" />
     <None Include="shader0.vert" />
+    <None Include="coolbox.glb" />
+    <None Include="Suzanne.glb" />
   </ItemGroup>
 </Project>
