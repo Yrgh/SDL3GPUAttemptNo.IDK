@@ -16,6 +16,7 @@ u32 Renderer::get_unused_texture() {
 		}
 	}
 	return U32_BAD;
+
 }
 
 Renderer::Renderer(SDL_Window *window):
@@ -46,13 +47,6 @@ Renderer::Renderer(SDL_Window *window):
 	};
 
 	m_upload_buffer = SDL_CreateGPUTransferBuffer(m_device, &utbci);
-
-	SDL_GPUTransferBufferCreateInfo dtbci = {
-		.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD,
-		.size = TRANSFER_BUFFER_SIZE
-	};
-
-	m_download_buffer = SDL_CreateGPUTransferBuffer(m_device, &dtbci);
 }
 
 Renderer::~Renderer() {
@@ -123,8 +117,6 @@ void Renderer::clean_resources(RendererCleanupExclude exclude) {
 	if (!exclude_internals) {
 		SDL_ReleaseGPUTransferBuffer(m_device, m_upload_buffer);
 		m_upload_buffer = nullptr;
-		SDL_ReleaseGPUTransferBuffer(m_device, m_download_buffer);
-		m_download_buffer = nullptr;
 
 		SDL_ReleaseWindowFromGPUDevice(m_device, m_targ_window);
 		m_targ_window = nullptr;
@@ -185,7 +177,7 @@ void Renderer::end_copy_pass(ActiveCopyPass acp) {
 
 	SDL_EndGPUCopyPass(acp.m_cp);
 
-	// Do non-pass processing
+	// Regenerate dirty mipmaps
 	for (u32 i = 0; i < m_user_textures.size(); ++i) {
 		if (m_user_textures[i] && m_texture_states[i].dirty_mip) {
 			SDL_GenerateMipmapsForGPUTexture(acp.m_cb, m_user_textures[i]);
@@ -193,6 +185,171 @@ void Renderer::end_copy_pass(ActiveCopyPass acp) {
 	}
 
 	SDL_SubmitGPUCommandBuffer(acp.m_cb);
+}
+
+//void Renderer::upload_buffer(const UploadInfo &info, SDL_GPUCopyPass *cp) {
+//	SDL_GPUBuffer *buffer = m_buffers[*info.buffer];
+//	u32 length = m_buffer_infos[*info.buffer].size;
+//	bool cycle_buffer = true;
+//
+//	SDL_GPUTransferBufferLocation source = {
+//		.transfer_buffer = m_upload_buffer,
+//		.offset = 0
+//	};
+//
+//	SDL_GPUBufferRegion dest = {
+//		.buffer = buffer,
+//	};
+//
+//	u32 offset = 0;
+//	while (length > 0) {
+//		u32 size = length > TRANSFER_BUFFER_SIZE ? TRANSFER_BUFFER_SIZE : length;
+//		length -= size;
+//
+//		memmove(SDL_MapGPUTransferBuffer(m_device, m_upload_buffer, true), info.data.data() + offset, size);
+//		SDL_UnmapGPUTransferBuffer(m_device, m_upload_buffer);
+//
+//		dest.offset = offset;
+//		dest.size = size;
+//
+//		SDL_UploadToGPUBuffer(cp, &source, &dest, cycle_buffer);
+//		// Only cycle the first time
+//		cycle_buffer = false;
+//
+//		offset += size;
+//	}
+//}
+
+void Renderer::sync_pass() {
+	SDL_GPUCommandBuffer *cb = SDL_AcquireGPUCommandBuffer(m_device);
+
+	SDL_GPUCopyPass *cp = SDL_BeginGPUCopyPass(cb);
+
+	Map<u32, bool> cycle_buffer;
+
+	struct BufferChunk {
+		RID buffer;
+		u32 transfer_offset;
+		u32 buffer_offset;
+		u32 size;
+	};
+
+	std::vector<BufferChunk> chunks;
+
+	u32 current_offset = 0;
+	void *current_mapped = nullptr;
+
+	//std::cout << "\nUpload phase ---------\n";
+	for (u32 i = 0; i < m_upload_queue.size(); ++i) {
+		cycle_buffer[*m_upload_queue[i].buffer] = true;
+
+		u32 buffer_length = m_buffer_infos[*m_upload_queue[i].buffer].size;
+		u32 buffer_offset = 0;
+
+		//std::cout << "Buffer " << *m_upload_queue[i].buffer << " has length " << buffer_length << "\n";
+
+		// Upload chunks of the buffer until full
+		while (buffer_offset < buffer_length) {
+			// If we have used our current chunk, dispatch it
+			if (current_mapped && current_offset >= TRANSFER_BUFFER_SIZE) {
+				SDL_UnmapGPUTransferBuffer(m_device, m_upload_buffer);
+
+				//std::cout << "Dispatching chunk\n";
+
+				for (u32 c = 0; c < chunks.size(); ++c) {
+					//std::cout << "\tBuffer " << *chunks[c].buffer << "\n";
+					//std::cout << "\t\tTransfer offset: " << chunks[c].transfer_offset << "\n";
+					//std::cout << "\t\tBuffer offset: " << chunks[c].buffer_offset << "\n";
+					//std::cout << "\t\tSize: " << chunks[c].size << "\n";
+
+					SDL_GPUTransferBufferLocation source = {
+						.transfer_buffer = m_upload_buffer,
+						.offset = chunks[c].transfer_offset
+					};
+
+					SDL_GPUBufferRegion dest = {
+						.buffer = m_buffers[*chunks[c].buffer],
+						.offset = chunks[c].buffer_offset,
+						.size = chunks[c].size
+					};
+
+					SDL_UploadToGPUBuffer(cp, &source, &dest, cycle_buffer[*chunks[c].buffer]);
+					cycle_buffer[*chunks[c].buffer] = false;
+				}
+
+				chunks.clear();
+				current_mapped = nullptr;
+			}
+
+			// If we don't have a current chunk or we dispatched it, make one
+			if (!current_mapped) {
+				//std::cout << "Mapping chunk\n";
+				current_mapped = SDL_MapGPUTransferBuffer(m_device, m_upload_buffer, true);
+				current_offset = 0;
+			}
+
+			//std::cout << "Filling chunk\n";
+
+			u32 size = buffer_length - buffer_offset;
+			if (size > TRANSFER_BUFFER_SIZE - current_offset)
+				size = TRANSFER_BUFFER_SIZE - current_offset;
+
+
+			chunks.push_back({
+				.buffer = *m_upload_queue[i].buffer,
+				.transfer_offset = current_offset,
+				.buffer_offset = buffer_offset,
+				.size = size
+			});
+
+			memmove((byte *) current_mapped + current_offset, m_upload_queue[i].data.data() + buffer_offset, size);
+
+			current_offset += size;
+			buffer_offset += size;
+		}
+	}
+
+	if (current_mapped) {
+		SDL_UnmapGPUTransferBuffer(m_device, m_upload_buffer);
+
+		//std::cout << "Dispatching final chunk\n";
+
+		for (u32 c = 0; c < chunks.size(); ++c) {
+			//std::cout << "\tBuffer " << *chunks[c].buffer << "\n";
+			//std::cout << "\t\tTransfer offset: " << chunks[c].transfer_offset << "\n";
+			//std::cout << "\t\tBuffer offset: " << chunks[c].buffer_offset << "\n";
+			//std::cout << "\t\tSize: " << chunks[c].size << "\n";
+
+			SDL_GPUTransferBufferLocation source = {
+				.transfer_buffer = m_upload_buffer,
+				.offset = chunks[c].transfer_offset
+			};
+
+			SDL_GPUBufferRegion dest = {
+				.buffer = m_buffers[*chunks[c].buffer],
+				.offset = chunks[c].buffer_offset,
+				.size = chunks[c].size
+			};
+
+			SDL_UploadToGPUBuffer(cp, &source, &dest, cycle_buffer[*chunks[c].buffer]);
+			cycle_buffer[*chunks[c].buffer] = false;
+		}
+
+		chunks.clear();
+	}
+
+	m_upload_queue.clear();
+
+	SDL_EndGPUCopyPass(cp);
+	
+	// Regenerate dirty mipmaps
+	for (u32 i = 0; i < m_user_textures.size(); ++i) {
+		if (m_user_textures[i] && m_texture_states[i].dirty_mip) {
+			SDL_GenerateMipmapsForGPUTexture(cb, m_user_textures[i]);
+		}
+	}
+
+	SDL_SubmitGPUCommandBuffer(cb);
 }
 
 ActiveRenderPass Renderer::begin_window_render_pass() {

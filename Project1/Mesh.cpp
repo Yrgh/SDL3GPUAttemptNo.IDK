@@ -245,6 +245,14 @@ void Mesh::upload(ActiveCopyPass &acp) {
 	m_dirtiness = DIRTY_NONE;
 }
 
+void Mesh::upload() {
+	if (m_dirtiness & DIRTY_VERTICES) m_renderer->queue_buffer_upload(m_vertbuf, m_vertices);
+	if (m_dirtiness & DIRTY_INDICES && *m_indexbuf != U32_BAD) m_renderer->queue_buffer_upload(m_indexbuf, m_indices);
+	if (m_dirtiness & DIRTY_INSTANCES && *m_instbuf != U32_BAD) m_renderer->queue_buffer_upload(m_instbuf, m_instances);
+
+	m_dirtiness = DIRTY_NONE;
+}
+
 void Mesh::bind(ActiveRenderPass &arp) {
 	if (*m_indexbuf != U32_BAD) {
 		arp.bind_mesh_indexed(m_indices.size(), m_indexbuf, m_vertbuf, m_instbuf);

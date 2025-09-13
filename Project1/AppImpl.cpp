@@ -6,11 +6,12 @@
 #include "MiniLibs/lodepng.h"
 
 void AppImpl::process_tick() {
+	m_mesh0.upload();
+	m_mesh1.upload();
+	m_renderer.sync_pass();
+
 	ActiveCopyPass acp = m_renderer.begin_copy_pass();
 	if (acp.is_valid()) {
-		m_mesh0.upload(acp);
-		m_mesh1.upload(acp);
-
 		acp.upload_texture(m_texturedata0.data(), m_texturedata0.size(), m_texture0);
 	}
 	m_renderer.end_copy_pass(std::move(acp));

@@ -13,6 +13,6 @@ void main() {
 	vec3 N = normalize(frag_norm);
 	vec4 samp = texture(tex, frag_uv);
 	vec3 albedo = samp.rgb;
-	albedo *= clamp(dot(N, SUN), 0.0, 1.0);
+	albedo *= 0.5 + 0.5 * clamp(dot(N, SUN), 0.0, 1.0);
 	out_color = vec4(albedo, samp.a);
 }

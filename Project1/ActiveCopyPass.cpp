@@ -48,7 +48,8 @@ void ActiveCopyPass::upload_texture(byte *data, u32 length, RID dest_tex) {
 	u32 pixel_size = SDL_GPUTextureFormatTexelBlockSize(info.format);
 	u32 bytes_per_row = pixel_size * info.width;
 
-	// TODO: bytes_per_row currently cannot exceed TRANSFER_BUFFER_SIZE
+	// Ignore this. A 4k texture at max format is 128KiB/row, which can fit in TRANSFER_BUFFER_SIZE several times over.
+	// ~TO~DO~: bytes_per_row currently cannot exceed TRANSFER_BUFFER_SIZE
 	// FIX: Break rows up too. *Should* be easy
 	
 	// The number of rows per group

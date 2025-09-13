@@ -14,6 +14,7 @@ namespace tg = tinygltf;
 using tg::TinyGLTF;
 
 class Mesh {
+public:
 	enum DirtyState {
 		DIRTY_NONE = 0,
 		DIRTY_VERTICES = 1,
@@ -64,5 +65,6 @@ public:
 	// No support for updating indices
 
 	void upload(ActiveCopyPass &acp);
+	void upload();
 	void bind(ActiveRenderPass &arp);
 };

@@ -59,13 +59,13 @@ public:
 
 	inline RID(const u32 &o): m_number(o) {}
 
-	u32 operator*() {
+	u32 operator*() const {
 		return m_number;
 	}
 
 	operator u32() = delete;
 
-	operator bool() {
+	operator bool() const {
 		return m_number > 0;
 	}
 };

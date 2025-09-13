@@ -7,7 +7,7 @@
 
 // Must be at least the max texture width * the largest supported format
 // Currently: 16MiB
-inline const u32 TRANSFER_BUFFER_SIZE = 1024 * 1024 * 16;
+inline const u32 TRANSFER_BUFFER_SIZE = 1024 * 32 * 16;
 
 // NOTE: Compressed texture formats are not supported (yet)
 
@@ -47,6 +47,11 @@ struct TextureState {
 	u32 width, height, depth;
 };
 
+struct UploadInfo {
+	RID buffer;
+	std::vector<byte> data;
+};
+
 class Renderer {
 	SDL_GPUDevice *m_device = nullptr;
 
@@ -69,6 +74,8 @@ class Renderer {
 	SDL_GPUViewport m_viewport;
 
 	SDL_GPUTransferBuffer *m_upload_buffer;
+	std::vector<UploadInfo> m_upload_queue;
+	
 
 	friend class ActiveRenderPass;
 
@@ -82,6 +89,8 @@ class Renderer {
 
 	u32 get_unused_buffer();
 	u32 get_unused_texture();
+
+	void upload_buffer(const UploadInfo &info);
 
 	friend class RenderRetarget;
 
@@ -138,6 +147,16 @@ public:
 	/// </summary>
 	/// <param name="pass">- The copy pass to end</param>
 	void end_copy_pass(ActiveCopyPass pass);
+
+	/// <summary>
+	/// Performs a copy pass and regenerates dirty mipmaps
+	/// </summary>
+	void sync_pass();
+
+	template<class T>
+	inline void queue_buffer_upload(RID buffer, const std::vector<T> &data) {
+		m_upload_queue.emplace_back(buffer, std::vector<byte>((byte *) data.data(), (byte *) data.data() + data.size() * sizeof(T)));
+	}
 
 	/// <summary>
 	/// Begins a render pass. The render pass will target the window that was specified at creation
